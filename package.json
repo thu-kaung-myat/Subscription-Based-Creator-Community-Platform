@@ -1,11 +1,28 @@
 {
   "dependencies": {
-    "@prisma/extension-accelerate": "^2.0.2",
     "bcryptjs": "^3.0.2",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "loadash": "^1.0.0",
     "mongoose": "^8.16.2"
-  }
+  },
+  "name": "subscription-based-creator-community-platform",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/thu-kaung-myat/Subscription-Based-Creator-Community-Platform.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/thu-kaung-myat/Subscription-Based-Creator-Community-Platform/issues"
+  },
+  "homepage": "https://github.com/thu-kaung-myat/Subscription-Based-Creator-Community-Platform#readme",
+  "description": ""
 }
