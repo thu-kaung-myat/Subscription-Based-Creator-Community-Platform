@@ -49,6 +49,7 @@ export async function getDashboardData(req, res) {
 export const updateDashboardData = async (req, res) => {
   try {
     const userId = req.user.id;
+    const userRole = req.user.role;
   
     // 1. Start with body fields
     const updateData = { ...req.body };
@@ -57,41 +58,52 @@ export const updateDashboardData = async (req, res) => {
     if (req.file) {
       updateData.profile_pic = `http://${req.get("host")}/uploads/${req.file.filename}`; // or full path if needed
     }
-  
-    console.log("Update data →", updateData);
-
-    updateData.role = "user"
-  
-    const updatedUser = await Base.findByIdAndUpdate(
-      userId,
-      { $set: updateData },
-      { new: true, runValidators: true, overwriteDiscriminatorKey: true }
-    );
+    let updatedUser;
+    switch(userRole){
+      case "user": updatedUser = await User.findByIdAndUpdate(
+                   userId,
+                   { $set: updateData },
+                   { new: true, runValidators: true, overwriteDiscriminatorKey: true }
+                  );break;
+      case "creator": updatedUser = await Creator.findByIdAndUpdate(
+                    userId,
+                    { $set: updateData},
+                    { new: true, runValidators: true, overwriteDiscriminatorKey: true }
+      )
+    }
 
     updatedUser.save();
   
     return res.json({ success: true, user: updatedUser.role });
   } catch (error) {
-    console.error("Update error:", error);
-    res.status(500).json({ message: "Update failed" });
+    
   }
 }
 
 export const upgradeToCreator = async (req,res) => {
-  try {
-    const userId = req.user.id;
+  const userId = req.user.id;
+  let upgradeData = {...req.body}
 
-    const upgradeData = {...req.body};
-    upgradeData.role = 'creator';
+  const existing = await Base.findById(userId);
+  if (!existing) return res.status(404).json({ message: "User not found." });
 
-    const creator = await Base.findByIdAndUpdate(
-      userId,
-      {$set: upgradeData},
-      {new: true, runValidators: true, overwriteDiscriminatorKey: true}
-    )
-
-
-  }catch(err){
-    console.error(err);
+  // Check if already a creator
+  if (existing.role === "creator") {
+    return res.status(400).json({ message: "User is already a creator." });
   }
+
+  try{
+    const creator = await User.findByIdAndUpdate(
+      userId,
+      { role: "creator",
+        $set: upgradeData
+      },
+      { new: true, runValidators: true, overwriteDiscriminatorKey: true }
+    )
+    return res.json({ success: true, user: creator.role });
+  }catch(err){
+    console.error("Update error:", err);
+    res.status(500).json({ message: "Upgrade failed" });
+  }
+  
 }

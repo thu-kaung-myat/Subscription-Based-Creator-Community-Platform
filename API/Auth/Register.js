@@ -13,7 +13,8 @@ export default async function registerUser(req, res) {
 
     const user = new User({
       email,
-      password: hashed
+      password: hashed,
+      role: 'user'
     });
     await user.save();
 

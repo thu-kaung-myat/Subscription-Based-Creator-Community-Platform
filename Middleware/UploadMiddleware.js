@@ -8,11 +8,15 @@ import { body, validationResult } from "express-validator";
    ────────────────────────────────────────────────────────── */
 const fileStorage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, "uploads/");                   // keep folder lowercase
+    if(file){
+      cb(null, "uploads/");// keep folder lowercase
+    }               
   },
   filename: (req, file, cb) => {
-    const unique = Date.now() + extname(file.originalname);
-    cb(null, `${file.fieldname}-${unique}`);
+    if(file){
+      const unique = Date.now() + extname(file.originalname);
+      cb(null, `${file.fieldname}-${unique}`);
+    }
   },
 });
 

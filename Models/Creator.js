@@ -6,7 +6,7 @@ const creatorSchema = new Schema({
     profile_pic: {type:String},
     bio: String,
     fee: Number,
-    payoutInfo: { type: String, required: true },      // creator‑only
+    payout_info: { type: String, required: true },      // creator‑only
 })
 
 export const Creator = Base.discriminator("creator", creatorSchema)
