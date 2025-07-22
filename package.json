@@ -1,13 +1,19 @@
 {
   "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "@prisma/extension-accelerate": "^2.0.2",
     "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
     "dotenv": "^17.1.0",
     "express": "^5.1.0",
+    "express-validator": "^7.2.1",
     "jsonwebtoken": "^9.0.2",
     "loadash": "^1.0.0",
-    "mongoose": "^8.16.2"
+    "mongoose": "^8.16.2",
+    "multer": "^2.0.1"
   },
   "name": "subscription-based-creator-community-platform",
+  "type": "module",
   "version": "1.0.0",
   "main": "app.js",
   "scripts": {
@@ -24,5 +30,11 @@
     "url": "https://github.com/thu-kaung-myat/Subscription-Based-Creator-Community-Platform/issues"
   },
   "homepage": "https://github.com/thu-kaung-myat/Subscription-Based-Creator-Community-Platform#readme",
+  "devDependencies": {
+    "@types/node": "^24.0.12",
+    "prisma": "^6.11.1",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.8.3"
+  },
   "description": ""
 }

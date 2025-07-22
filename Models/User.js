@@ -1,18 +1,10 @@
-const mongoose = require("mongoose");
+import mongoose from "mongoose";
+import Base from "./Base.js";
 
 const userSchema = new mongoose.Schema({
-  username:     { type: String, required: true, unique: true },
-  email:        { type: String, required: true, unique: true },
-  password:     { type: String, required: true },
-  role: {
-    type: String,
-    enum: ["USER", "CREATOR", "ADMIN"],
-    default: "USER"
-  },
-  fee:          { type: Number, min: 0 }, // Only if role is CREATOR
-  bio:          String,
-  pic_url:      String,
-  created_at:   { type: Date, default: Date.now }
-});
+    username: {type: String, require: true},
+    bio: {type: String},
+    profile_pic: {type: String}
+})
 
-module.exports = mongoose.model("User", userSchema);
+export const User = Base.discriminator("user",userSchema)
