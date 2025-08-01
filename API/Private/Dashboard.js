@@ -1,5 +1,7 @@
 // controllers/dashboard.js
 import Base from "../../Models/Base.js";
+import dotenv from "dotenv";
+import Stripe from "stripe";
 import { User } from "../../Models/User.js";
 import { Creator } from "../../Models/Creator.js";
 
@@ -56,7 +58,7 @@ export const updateDashboardData = async (req, res) => {
   
     // 2. If a file is uploaded, save filename or full path
     if (req.file) {
-      updateData.profile_pic = `http://${req.get("host")}/uploads/${req.file.filename}`; // or full path if needed
+      updateData.profile_pic = req.cloudinaryUrl; // or full path if needed
     }
     let updatedUser;
     switch(userRole){
@@ -80,30 +82,222 @@ export const updateDashboardData = async (req, res) => {
   }
 }
 
+dotenv.config();
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
 export const upgradeToCreator = async (req,res) => {
   const userId = req.user.id;
   let upgradeData = {...req.body}
 
-  const existing = await Base.findById(userId);
-  if (!existing) return res.status(404).json({ message: "User not found." });
+  const user = await Base.findById(userId);
+  if (!user) return res.status(404).json({ message: "User not found." });
 
   // Check if already a creator
-  if (existing.role === "creator") {
-    return res.status(400).json({ message: "User is already a creator." });
+  if (user.role === "creator") {
+    return handleExistingCreator(user, res);
   }
 
   try{
+
+    const stripeAccount = await stripe.accounts.create({
+      type: "express",
+      country: "US",
+      email: user.email,
+      capabilities: {
+        transfers: { requested: true },
+      },
+      business_type: "individual",
+      individual: {
+        email: user.email,
+      },
+    });
+
     const creator = await User.findByIdAndUpdate(
       userId,
       { role: "creator",
+        payoutInfo: stripeAccount.id,
+        onboardingComplete: false,
         $set: upgradeData
       },
       { new: true, runValidators: true, overwriteDiscriminatorKey: true }
     )
-    return res.json({ success: true, user: creator.role });
+
+    const accountLink = await stripe.accountLinks.create({
+      account: stripeAccount.id,
+      refresh_url: `${process.env.FRONTEND_URL}/onboarding-retry`,
+      return_url: `${process.env.FRONTEND_URL}/creator-dashboard`,
+      type: "account_onboarding",
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Creator account created. Complete Stripe onboarding to receive payments.",
+      onboardingUrl: accountLink.url,
+      creator: creator,
+      onboardingComplete: false
+    });
+
+
   }catch(err){
     console.error("Update error:", err);
-    res.status(500).json({ message: "Upgrade failed" });
+    return handleStripeError(err, res);
   }
-  
 }
+
+// Handles retrying Stripe onboarding for existing creators
+export const retryStripeOnboarding = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const creator = await Creator.findOne({ user: userId });
+
+    if (!creator) {
+      return res.status(404).json({ 
+        success: false,
+        message: "Creator account not found" 
+      });
+    }
+
+    if (!creator.payoutInfo) {
+      return res.status(400).json({
+        success: false,
+        message: "No Stripe account associated with this creator"
+      });
+    }
+
+    // Check current Stripe account status
+    const stripeAccount = await stripe.accounts.retrieve(creator.payoutInfo);
+    const isOnboardingComplete = stripeAccount.charges_enabled && stripeAccount.payouts_enabled;
+
+    // Update local status if changed
+    if (isOnboardingComplete !== creator.onboardingComplete) {
+      creator.onboardingComplete = isOnboardingComplete;
+      await creator.save();
+    }
+
+    // Return early if already complete
+    if (isOnboardingComplete) {
+      return res.status(200).json({
+        success: true,
+        message: "Onboarding already completed",
+        onboardingComplete: true,
+        creator
+      });
+    }
+
+    // Generate new onboarding link
+    const accountLink = await stripe.accountLinks.create({
+      account: creator.payoutInfo,
+      refresh_url: `${process.env.FRONTEND_URL}/onboarding-retry`,
+      return_url: `${process.env.FRONTEND_URL}/creator-dashboard`,
+      type: "account_onboarding",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "New onboarding link generated",
+      onboardingUrl: accountLink.url,
+      onboardingComplete: false,
+      creator
+    });
+
+  } catch (error) {
+    console.error("[Onboarding Retry Error]", error);
+    return handleStripeError(error, res);
+  }
+};
+
+export const getStripeDashboardLink = async (req, res) => {
+  try {
+    const creator = await Creator.findOne({ user: req.user.id });
+
+    if (!creator || !creator.payoutInfo) {
+      return res.status(404).json({ message: "Creator or Stripe account not found" });
+    }
+
+    const loginLink = await stripe.accounts.createLoginLink(creator.payoutInfo);
+
+    res.status(200).json({
+      success: true,
+      url: loginLink.url,
+    });
+  } catch (error) {
+    console.error("Failed to generate Stripe login link:", error.message);
+    res.status(500).json({
+      success: false,
+      error: "Failed to create Stripe dashboard link",
+    });
+  }
+};
+
+async function handleExistingCreator(creator, res) {
+  try {
+    // Verify Stripe account exists
+    if (!creator.payoutInfo) {
+      return res.status(400).json({
+        success: false,
+        message: "Creator exists but has no Stripe account",
+        creator
+      });
+    }
+
+    // Check current onboarding status
+    const stripeAccount = await stripe.accounts.retrieve(creator.payoutInfo);
+    const isOnboardingComplete = stripeAccount.charges_enabled && stripeAccount.payouts_enabled;
+
+    // Update local status if changed
+    if (isOnboardingComplete !== creator.onboardingComplete) {
+      creator.onboardingComplete = isOnboardingComplete;
+      await creator.save();
+    }
+
+    // Return appropriate response based on status
+    if (isOnboardingComplete) {
+      return res.status(200).json({
+        success: true,
+        message: "You're already an active creator",
+        creator,
+        onboardingComplete: true
+      });
+    }
+
+    // Generate new onboarding link if incomplete
+    const accountLink = await stripe.accountLinks.create({
+      account: creator.payoutInfo,
+      refresh_url: `${process.env.FRONTEND_URL}/onboarding-retry`,
+      return_url: `${process.env.FRONTEND_URL}/creator-dashboard`,
+      type: "account_onboarding",
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Continue Stripe onboarding to activate your account",
+      onboardingUrl: accountLink.url,
+      creator,
+      onboardingComplete: false
+    });
+
+  } catch (error) {
+    console.error("[Existing Creator Handler Error]", error);
+    return handleStripeError(error, res);
+  }
+};
+
+//Centralized Stripe error handling
+
+function handleStripeError(error, res) {
+  // Stripe-specific errors
+  if (error.type === "StripeInvalidRequestError") {
+    return res.status(400).json({
+      success: false,
+      error: "Stripe configuration error",
+      details: process.env.NODE_ENV === "development" ? error.message : undefined,
+    });
+  }
+
+  // Generic server errors
+  return res.status(500).json({
+    success: false,
+    error: "Internal server error",
+    details: process.env.NODE_ENV === "development" ? error.message : undefined,
+  });
+};

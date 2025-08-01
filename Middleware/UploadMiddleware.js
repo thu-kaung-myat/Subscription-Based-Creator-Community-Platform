@@ -6,21 +6,11 @@ import { body, validationResult } from "express-validator";
 /* ──────────────────────────────────────────────────────────
    1)  FILE‑UPLOAD MIDDLEWARE  (for routes that handle files)
    ────────────────────────────────────────────────────────── */
-const fileStorage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    if(file){
-      cb(null, "uploads/");// keep folder lowercase
-    }               
-  },
-  filename: (req, file, cb) => {
-    if(file){
-      const unique = Date.now() + extname(file.originalname);
-      cb(null, `${file.fieldname}-${unique}`);
-    }
-  },
-});
+// Use memory storage instead of saving to disk
+const storage = multer.memoryStorage();
 
-export const upload = multer({ storage: fileStorage }); // e.g. upload.single('avatar')
+export const upload = multer({ storage }); // e.g. upload.single('profilePic')
+   
 
 /* ──────────────────────────────────────────────────────────
    2)  REGISTRATION PARSER  (no files, just fields)

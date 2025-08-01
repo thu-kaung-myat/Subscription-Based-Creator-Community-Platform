@@ -3,10 +3,13 @@ import Base from "./Base.js";
 
 const creatorSchema = new Schema({
     username: { type: String, required: true },        // duplicated but harmless
-    profile_pic: {type:String},
+    profilePic: {type:String},
     bio: String,
-    fee: Number,
-    payout_info: { type: String, required: true },      // creator‑only
+    fee: Number,                                       // creator‑only
+    category: {type: String, required: true},
+    payoutInfo: { type: String, required: true },      
+    onboardingComplete: {type: String, default: false},
+    upgradedAt: {type: Date, default: Date.now}
 })
 
 export const Creator = Base.discriminator("creator", creatorSchema)
