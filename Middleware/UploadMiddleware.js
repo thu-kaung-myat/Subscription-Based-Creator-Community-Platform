@@ -1,6 +1,5 @@
 // middleware/upload.js
 import multer from "multer";
-import { extname } from "path";
 import { body, validationResult } from "express-validator";
 
 /* ──────────────────────────────────────────────────────────

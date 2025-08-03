@@ -3,9 +3,13 @@ import Base from "./Base.js";
 
 const creatorSchema = new Schema({
     username: { type: String, required: true },        // duplicated but harmless
-    profilePic: {type:String},
+    profilePic: {
+        url: {type: String},
+        publicId: {type: String}
+    },
     bio: String,
-    fee: Number,                                       // creator‑only
+    fee: {type : Number, require: true},               // creator‑only
+    earnings: {type: Number, default: 0},              
     category: {type: String, required: true},
     payoutInfo: { type: String, required: true },      
     onboardingComplete: {type: String, default: false},

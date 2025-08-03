@@ -1,12 +1,12 @@
 import jwt from "jsonwebtoken";
 import User from "../Models/Base.js";
-import { log } from "console";
+import { error, log } from "console";
 
 const authMiddleware = async (req, res, next) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith("Bearer "))
-    return res.status(401).json({ message: "No token provided" });
+    return next();
 
   const token = authHeader.split(" ")[1];
 
@@ -15,7 +15,7 @@ const authMiddleware = async (req, res, next) => {
     req.user = await User.findById(decoded.id).select("-password");
     next();
   } catch (err) {
-    return res.status(401).json({ message: "Invalid token" });
+    return res.status(401).json({ message: "Invalid token", error: err });
   }
 };
 

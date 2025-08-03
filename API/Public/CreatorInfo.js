@@ -7,15 +7,15 @@ export const getRandomCreator = async (req,res) => {
                 $match: {role: 'creator'}
             },
             {
-                $sample: {size: 3}
+                $sample: {size: 4}
             },
             {
                 $project: {
-                    _id : 0,
                     username : 1,
                     bio : 1,
                     fee : 1,
-                    profile_pic : 1
+                    profilePic : 1,
+                    category : 1
                 }
             }
         ])
@@ -29,7 +29,7 @@ export const getRandomCreator = async (req,res) => {
 
 export const getAllCreators = async (req,res) => {
     try{
-        const creators = await Creator.find()
+        const creators = await Creator.find({role : "creator"}).select("username bio fee profilePic category")
         res.status(200).json(creators)
     }catch(e){
         console.error(e)
