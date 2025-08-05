@@ -1,7 +1,7 @@
 import { Router } from "express";
 import upload from "../Middleware/UploadMiddleware.js";
 import authMiddleware from "../Middleware/AuthMiddleware.js";
-import { getDashboardData, updateDashboardData, upgradeToCreator} from "../API/Private/Dashboard.js";
+import { getDashboardData, getSubscriptions, getSubscribers, updateDashboardData, upgradeToCreator, getBookMarks} from "../API/Private/Dashboard.js";
 import { retryStripeOnboarding, getStripeDashboardLink } from "../API/Util/StripeHandler.js";
 import { uploadToCloudinary } from "../API/Util/CloudinaryUpload.js";
 import { subscribeToCreator } from "../API/Private/Subscribing.js";
@@ -10,9 +10,12 @@ import { createPost, deletePost, editPost, getAllPosts, likePost } from "../API/
 
 const router = Router();
 
+router.get("/creator/subscribed", authMiddleware, getSubscriptions);
+router.get("/subscriber", authMiddleware, getSubscribers);
+router.get("/bookmarks", authMiddleware, getBookMarks);
 router.get("/dashboard", authMiddleware, getDashboardData);
 router.patch("/dashboard", authMiddleware, upload.single('profilePic'), uploadToCloudinary, updateDashboardData);
-router.patch("/upgrade", authMiddleware, upload.none(), upgradeToCreator)
+router.patch("/upgrade", authMiddleware, upgradeToCreator);
 router.get("/stripe/onboarding", authMiddleware, retryStripeOnboarding);
 router.get("/stripe/dashboard", authMiddleware, getStripeDashboardLink);
 router.post("/subscribe/:creatorId", authMiddleware, subscribeToCreator );

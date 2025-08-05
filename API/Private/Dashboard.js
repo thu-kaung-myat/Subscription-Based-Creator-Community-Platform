@@ -7,24 +7,33 @@ import { User } from "../../Models/User.js";
 import { Creator } from "../../Models/Creator.js";
 import { handleExistingCreator, handleStripeError } from "../Util/StripeHandler.js";
 import { checkAuthorization } from "./Authorization.js";
-import { deleteImage} from "../Util/CloudinaryUpload.js";
+import { deleteImage } from "../Util/CloudinaryUpload.js";
+
+export const getBookMarks = async (req,res) => {
+  try{
+    checkAuthorization(req,res);
+    let user;
+    switch(req.user.role){
+      case "user" : user = User.findById(req.user.id).select('bookMarks');break;
+      case "creator" : user = User.findById(req.user.id).select('bookMarks');break;
+      default : return res.status(404).json({message : "Requested data not found"});
+    }
+    return res.status(200).json({bookMarks : user.bookMarks});
+  }catch(error){
+    return res.status(500).json({message : error});
+  }
+};
 
 export async function getDashboardData(req, res) {
   try {
     checkAuthorization(req,res);
     const userId = req.user.id;
-    
-
-    // Step 1: First get the base user to check role (discriminator key)
-    const baseUser = await Base.findById(userId).lean();
-    if (!baseUser) {
-      return res.status(404).json({ message: "User not found." });
-    }
+    const userRole = req.user.role;
 
     let detailedUser;
 
     // Step 2: Use the role to query the appropriate discriminator
-    switch (baseUser.role) {
+    switch (userRole) {
       case "user":
         detailedUser = await User.findById(userId)
           .select("username profilePic bio role")
@@ -37,7 +46,7 @@ export async function getDashboardData(req, res) {
           .select("username profilePic bio role")
           .lean();
         detailedUser.subscriptions = getSubs(userId);
-        detailedUser.subscribers = getSubscribers(userId);
+        detailedUser.subscribers = getFans(userId);
         break;
 
       default:
@@ -52,18 +61,47 @@ export async function getDashboardData(req, res) {
     return res.status(200).json(detailedUser);
 
   } catch (err) {
-    console.error("Dashboard error:", err);
-    return res.status(500).json({ message: "Server error" });
+    return res.status(500).json({ message: err});
   }
-}
+};
 
-export const getSubs = async (userId) => {
-  return subs =  await Subscription.find({subscriberId : userId}).select("creatorId")
-}
+const getSubs = async (userId) => {
+  try{
+    const subs =  await Subscription.find({subscriberId : userId}).select("creatorId");
+  }catch(err){
+    throw new Error(err);
+  }
+};
 
-export const getSubscribers = async (userId) => {
-  return fans = await Subscription.find({creatorId : userId}).select("subscriberId")
-}
+const getFans = async (userId) => {
+  try{
+    return fans = await Subscription.find({creatorId : userId}).select("subscriberId");
+  }catch(err){
+    throw new Error(err);
+  }
+};
+
+export const getSubscriptions = (req,res) => {
+  try{
+    const subscriptions = getSubs(req.user.id);
+    let creatorIds;
+    subscriptions.map(subscription => creatorIds.push(subscription.creatorId));
+    return res.status(200).json(creatorIds);
+  }catch(err){
+    return res.status(404).json({message : err});
+  }
+};
+
+export const getSubscribers = (req,res) => {
+  try{
+    const subscriptions = getSubs(req.user.id);
+    let subscriberIds;
+    subscriptions.map(subscription => subscriberIds.push(subscription.creatorId));
+    return res.status(200).json(subscriberIds);
+  }catch(err){
+    return res.status(404).json({message : err});
+  }
+};
 
 export const updateDashboardData = async (req, res) => {
   try {
@@ -81,7 +119,6 @@ export const updateDashboardData = async (req, res) => {
       const [pic] = req.attachments // or full path if needed
       updateData.profilePic = pic;
     }
-    console.log(userId,userRole,updateData);
 
     let updatedUser;
     const oldUser = await User.findById(userId).select('profilePic');
@@ -95,11 +132,11 @@ export const updateDashboardData = async (req, res) => {
                     userId,
                     { $set: updateData},
                     { new: true, runValidators: true, overwriteDiscriminatorKey: true }
-                  )
+                  );
     }
 
     await updatedUser.save();
-    deleteImage(oldUser.profilePic);
+    if(oldUser.profilePic.publicId)deleteImage(oldUser.profilePic.publicId);
     return res.json({ success: true, user: updatedUser.role });
   } catch (error) {
     console.error(error);
@@ -107,7 +144,7 @@ export const updateDashboardData = async (req, res) => {
     deleteImage(pic.publicId);
     return res.status(500).json({success: false, message: "Update Failed"});
   }
-}
+};
 
 dotenv.config();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -168,5 +205,5 @@ export const upgradeToCreator = async (req,res) => {
     console.error("Update error:", err);
     return handleStripeError(err, res);
   }
-}
+};
 

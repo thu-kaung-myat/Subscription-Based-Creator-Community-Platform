@@ -2,8 +2,6 @@ import { v2 as cloudinary } from "cloudinary";
 import dotenv from "dotenv";
 import { URL } from "url";
 import streamifier from "streamifier";
-import { url } from "inspector";
-
 
 // Configure using CLOUDINARY_URL
 dotenv.config();

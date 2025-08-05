@@ -1,4 +1,4 @@
-import { Schema } from "mongoose";
+import mongoose, { Schema } from "mongoose";
 import Base from "./Base.js";
 
 const creatorSchema = new Schema({
@@ -13,6 +13,9 @@ const creatorSchema = new Schema({
     category: {type: String, required: true},
     payoutInfo: { type: String, required: true },      
     onboardingComplete: {type: String, default: false},
+    bookMarks: [{
+        type: mongoose.Schema.ObjectId
+    }],
     upgradedAt: {type: Date, default: Date.now}
 })
 
